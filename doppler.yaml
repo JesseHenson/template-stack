@@ -1,0 +1,3 @@
+setup:
+  project: template-stack
+  config: dev

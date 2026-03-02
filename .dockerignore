@@ -1,0 +1,12 @@
+__pycache__
+*.py[cod]
+.venv
+node_modules
+.git
+.env
+.env.local
+*.md
+.github
+.claude
+tests
+docker-compose.yml

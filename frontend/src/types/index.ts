@@ -21,3 +21,10 @@ export interface ItemUpdate {
   description?: string;
   metadata?: Record<string, unknown>;
 }
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}

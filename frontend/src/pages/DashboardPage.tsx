@@ -2,7 +2,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useItems } from "@/hooks/useItems";
 
 export default function DashboardPage() {
-  const { data: items, isLoading } = useItems();
+  const { data, isLoading } = useItems();
+  const items = data?.items;
 
   return (
     <AppShell>

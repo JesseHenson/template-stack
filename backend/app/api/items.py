@@ -1,11 +1,11 @@
 """Example CRUD endpoints — replace with your product's resources."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.middleware import CurrentUserId
 from app.db.session import get_db
-from app.models.item import ItemCreate, ItemResponse, ItemUpdate
+from app.models.item import ItemCreate, ItemResponse, ItemUpdate, PaginatedResponse
 from app.services.item_service import (
     create_item,
     delete_item,
@@ -17,11 +17,15 @@ from app.services.item_service import (
 router = APIRouter()
 
 
-@router.get("", response_model=list[ItemResponse])
+@router.get("", response_model=PaginatedResponse[ItemResponse])
 async def list_items_endpoint(
-    clerk_id: CurrentUserId, db: AsyncSession = Depends(get_db)
+    clerk_id: CurrentUserId,
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
 ):
-    return await list_items(db, clerk_id)
+    items, total = await list_items(db, clerk_id, limit=limit, offset=offset)
+    return PaginatedResponse(items=items, total=total, limit=limit, offset=offset)
 
 
 @router.post("", response_model=ItemResponse, status_code=201)

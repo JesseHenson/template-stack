@@ -2,10 +2,12 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import delete
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.models import User
 from app.db.session import get_db
 
@@ -14,12 +16,38 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _verify_webhook(headers: dict, body: bytes) -> None:
+    """Verify Clerk webhook signature via svix. Skips when secret is empty (local dev)."""
+    if not settings.clerk_webhook_secret:
+        return
+
+    from svix.webhooks import Webhook, WebhookVerificationError
+
+    try:
+        wh = Webhook(settings.clerk_webhook_secret)
+        wh.verify(body, headers)
+    except WebhookVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+
+
 @router.post("/clerk")
 async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """Handle Clerk webhook events to sync users to the database."""
-    body = await request.json()
-    event_type = body.get("type")
-    data = body.get("data", {})
+    body = await request.body()
+    _verify_webhook(
+        {
+            "svix-id": request.headers.get("svix-id", ""),
+            "svix-timestamp": request.headers.get("svix-timestamp", ""),
+            "svix-signature": request.headers.get("svix-signature", ""),
+        },
+        body,
+    )
+
+    import json
+
+    payload = json.loads(body)
+    event_type = payload.get("type")
+    data = payload.get("data", {})
 
     if event_type in ("user.created", "user.updated"):
         clerk_id = data.get("id")
@@ -55,8 +83,6 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     elif event_type == "user.deleted":
         clerk_id = data.get("id")
         if clerk_id:
-            from sqlalchemy import delete
-
             await db.execute(delete(User).where(User.clerk_id == clerk_id))
             logger.info("Deleted user %s", clerk_id)
 

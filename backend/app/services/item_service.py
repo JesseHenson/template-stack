@@ -4,7 +4,7 @@ Follows the clerk_id → user_id ownership pattern.
 """
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Item, User
@@ -23,13 +23,20 @@ async def get_user_id_from_clerk_id(db: AsyncSession, clerk_id: str) -> str:
     return str(user_id)
 
 
-async def list_items(db: AsyncSession, clerk_id: str) -> list[Item]:
-    """List all items for a user."""
+async def list_items(
+    db: AsyncSession, clerk_id: str, *, limit: int = 50, offset: int = 0
+) -> tuple[list[Item], int]:
+    """List items for a user with pagination. Returns (items, total_count)."""
     user_id = await get_user_id_from_clerk_id(db, clerk_id)
+    base = select(Item).where(Item.user_id == user_id)
+
+    count_result = await db.execute(select(func.count()).select_from(base.subquery()))
+    total = count_result.scalar_one()
+
     result = await db.execute(
-        select(Item).where(Item.user_id == user_id).order_by(Item.created_at.desc())
+        base.order_by(Item.created_at.desc()).limit(limit).offset(offset)
     )
-    return list(result.scalars().all())
+    return list(result.scalars().all()), total
 
 
 async def get_item(db: AsyncSession, clerk_id: str, item_id: str) -> Item:

@@ -3,7 +3,11 @@
 import uuid
 from datetime import datetime
 
+from typing import Generic, TypeVar
+
 from pydantic import BaseModel, ConfigDict, Field
+
+T = TypeVar("T")
 
 
 class ItemCreate(BaseModel):
@@ -28,3 +32,10 @@ class ItemResponse(BaseModel):
     metadata: dict = Field(validation_alias="metadata_")
     created_at: datetime
     updated_at: datetime
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
+    limit: int
+    offset: int

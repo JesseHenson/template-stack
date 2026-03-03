@@ -16,6 +16,7 @@ dependencies = [
     "litellm>=1.50.0",
     "inngest>=0.4.0",
     "upstash-redis>=1.1.0",
+    "svix>=1.40.0",
     "sentry-sdk[fastapi]>=2.18.0",
     "langsmith>=0.1.140",
 ]
